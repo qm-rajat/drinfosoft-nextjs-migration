@@ -1,0 +1,153 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")  // Neon requires both for migrations
+}
+
+enums
+enum Role        { OWNER  TECHNICAL  BLOG_ADMIN }
+enum LeadStatus  { NEW  CONTACTED  CONVERTED  CLOSED }
+enum LeadTemp    { HOT  WARM  COLD }
+enum AppStatus   { PENDING  REVIEWING  SHORTLISTED  REJECTED }
+
+model User {
+  id               String        @id @default(cuid())
+  name             String
+  email            String        @unique
+  password         String        // bcrypt hashed
+  role             Role          @default(BLOG_ADMIN)
+  twoFactorEnabled Boolean       @default(false)
+  twoFactorSecret  String?       // TOTP secret (encrypted)
+  isActive         Boolean       @default(true)
+  createdById      String?       // Owner who created this user
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+  lastLoginAt      DateTime?
+  activityLogs     ActivityLog[]
+  loginHistory     LoginHistory[]
+  leadNotes        LeadNote[]
+}
+
+model LoginHistory {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields:[userId], references:[id])
+  ip        String
+  device    String
+  success   Boolean
+  createdAt DateTime @default(now())
+  @@index([userId])
+}
+
+model Lead {
+  id           String      @id @default(cuid())
+  name         String
+  email        String
+  phone        String
+  service      String?
+  message      String
+  source       String      // e.g. 'hero_cta', 'enquiry_form', 'exit_popup', 'chatbot'
+  sourcePage   String      // Exact URL of the page they submitted from
+  status       LeadStatus  @default(NEW)
+  temperature  LeadTemp    @default(COLD)
+  score        Int         @default(0)
+  couponUsed   String?
+  dripStep     Int         @default(0)  // Which drip email step they're on
+  notes        LeadNote[]
+  events       LeadEvent[]
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+}
+
+model LeadNote {
+  id        String   @id @default(cuid())
+  leadId    String
+  lead      Lead     @relation(fields:[leadId], references:[id], onDelete:Cascade)
+  note      String
+  userId    String
+  user      User     @relation(fields:[userId], references:[id])
+  createdAt DateTime @default(now())
+  @@index([leadId])
+}
+
+model LeadEvent {
+  id        String   @id @default(cuid())
+  leadId    String
+  lead      Lead     @relation(fields:[leadId], references:[id], onDelete:Cascade)
+  event     String   // e.g. 'service_page_view', 'email_opened', 'form_submit'
+  meta      Json?    // Extra context e.g. { page: '/seo-services', score: 10 }
+  createdAt DateTime @default(now())
+  @@index([leadId])
+}
+
+model NewsletterSubscriber {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  isActive     Boolean  @default(true)
+  subscribedAt DateTime @default(now())
+}
+
+model JobApplication {
+  id          String    @id @default(cuid())
+  jobSlug     String
+  name        String
+  email       String
+  phone       String
+  resumeUrl   String    // Uploaded to Cloudflare R2
+  coverLetter String?
+  status      AppStatus @default(PENDING)
+  createdAt   DateTime  @default(now())
+  @@index([jobSlug])
+}
+
+model Coupon {
+  id          String    @id @default(cuid())
+  code        String    @unique
+  description String
+  discount    Int       // Percentage e.g. 20 = 20% off
+  isActive    Boolean   @default(true)
+  usageCount  Int       @default(0)
+  maxUsage    Int?      // null = unlimited
+  expiresAt   DateTime?
+  createdAt   DateTime  @default(now())
+}
+
+model ActivityLog {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields:[userId], references:[id])
+  action    String   // e.g. 'Updated service: SEO Services'
+  entity    String   // e.g. 'Service', 'Lead', 'User', 'Coupon'
+  entityId  String?
+  meta      Json?
+  createdAt DateTime @default(now())
+  @@index([userId])
+  @@index([createdAt])
+}
+
+model BlockedIP {
+  id        String   @id @default(cuid())
+  ip        String   @unique
+  reason    String
+  blockedBy String
+  createdAt DateTime @default(now())
+}
+
+model AnalyticsEvent {
+  id        String   @id @default(cuid())
+  event     String   // cta_click, form_submit, service_page_view, etc.
+  page      String
+  sessionId String?
+  leadId    String?  // Link to lead if identifiable
+  meta      Json?
+  createdAt DateTime @default(now())
+  @@index([event])
+  @@index([createdAt])
+}
