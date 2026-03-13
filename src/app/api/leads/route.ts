@@ -35,7 +35,7 @@ export async function PATCH(req: Request) {
     return NextResponse.json({ error: 'Missing lead id' }, { status: 400 });
   }
 
-  const data: any = {};
+  const data: Record<string, unknown> = {};
   if (status) data.status = status;
   if (assignedToId) data.assignedToId = assignedToId;
 
