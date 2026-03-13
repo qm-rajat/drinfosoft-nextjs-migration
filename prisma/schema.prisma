@@ -47,23 +47,27 @@ model LoginHistory {
 }
 
 model Lead {
-  id           String      @id @default(cuid())
-  name         String
-  email        String
-  phone        String
-  service      String?
-  message      String
-  source       String      // e.g. 'hero_cta', 'enquiry_form', 'exit_popup', 'chatbot'
-  sourcePage   String      // Exact URL of the page they submitted from
-  status       LeadStatus  @default(NEW)
-  temperature  LeadTemp    @default(COLD)
-  score        Int         @default(0)
-  couponUsed   String?
-  dripStep     Int         @default(0)  // Which drip email step they're on
-  notes        LeadNote[]
-  events       LeadEvent[]
-  createdAt    DateTime    @default(now())
-  updatedAt    DateTime    @updatedAt
+  id              String      @id @default(cuid())
+  name            String
+  email           String
+  phone           String
+  company         String?
+  service         String?
+  serviceInterested String?
+  message         String
+  source          String      // e.g. 'hero_cta', 'enquiry_form', 'exit_popup', 'chatbot'
+  sourcePage      String      // Exact URL of the page they submitted from
+  status          LeadStatus  @default(NEW)
+  assignedToId    String?     // Assigned admin user
+  assignedTo      User?       @relation(fields: [assignedToId], references: [id])
+  temperature     LeadTemp    @default(COLD)
+  score           Int         @default(0)
+  couponUsed      String?
+  dripStep        Int         @default(0)  // Which drip email step they're on
+  notes           LeadNote[]
+  events          LeadEvent[]
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
 }
 
 model LeadNote {
@@ -107,16 +111,22 @@ model JobApplication {
   @@index([jobSlug])
 }
 
+enum DiscountType {
+  PERCENTAGE
+  FLAT
+}
+
 model Coupon {
-  id          String    @id @default(cuid())
-  code        String    @unique
-  description String
-  discount    Int       // Percentage e.g. 20 = 20% off
-  isActive    Boolean   @default(true)
-  usageCount  Int       @default(0)
-  maxUsage    Int?      // null = unlimited
-  expiresAt   DateTime?
-  createdAt   DateTime  @default(now())
+  id            String       @id @default(cuid())
+  code          String       @unique
+  description   String
+  discountType  DiscountType @default(PERCENTAGE)
+  discountValue Int          // Percentage (0-100) or flat amount in smallest currency unit
+  active        Boolean      @default(true)
+  usageCount    Int          @default(0)
+  maxUsage      Int?         // null = unlimited
+  expiryDate    DateTime?
+  createdAt     DateTime     @default(now())
 }
 
 model ActivityLog {
